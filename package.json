@@ -1,0 +1,38 @@
+{
+  "name": "my-store-app-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "rm -rf dist && npm run typecheck && node esbuild.config.mjs",
+    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --fix src",
+    "prettier": "prettier src --write",
+    "cdk:app:build": "./scripts/build.sh",
+    "cdk:app:build:deploy": "npm run cdk:app:build && npm run cdk:deploy",
+    "cdk:build": "cd infra && npm run build",
+    "cdk:build:deploy": "npm run cdk:build && npm run cdk:deploy",
+    "cdk:deploy": "cd infra && npx cdk deploy --outputs-file outputs.json --require-approval never --all",
+    "cdk:destroy": "cd infra && npx cdk destroy --force",
+    "cdk:synth": "cd infra && npx cdk synth > MyStack.template.yml"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.5.0",
+    "jest": "^30.3.0",
+    "prettier": "3.8.3",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
