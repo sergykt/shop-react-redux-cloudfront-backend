@@ -5,7 +5,7 @@ export const INTEGRATION_DEFAULT_CORS_HEADERS = {
   "method.response.header.Access-Control-Allow-Origin": FRONTEND_URL_LITERAL,
   "method.response.header.Access-Control-Allow-Headers":
     "'Content-Type,Authorization'",
-  "method.response.header.Access-Control-Allow-Methods": "'GET,OPTIONS'",
+  "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'",
 } as const;
 
 export const METHOD_DEFAULT_CORS_HEADERS = {

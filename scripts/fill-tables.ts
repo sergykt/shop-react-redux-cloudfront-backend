@@ -1,62 +1,54 @@
 import {
-  BatchWriteItemCommand,
   DynamoDBClient,
-  WriteRequest,
+  TransactWriteItem,
+  TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import { mockProducts } from "../src/services/product-service/mocks";
+import { AvailableProduct } from "../src/services/product-service/types";
 
 const productsTableName = "products";
 const stockTableName = "stock";
 
 const dynamoDB = new DynamoDBClient({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AWS_REGION,
 });
 
-const writeBatch = async (
-  tableName: string,
-  requests: WriteRequest[]
-): Promise<void> => {
-  const response = await dynamoDB.send(
-    new BatchWriteItemCommand({
-      RequestItems: {
-        [tableName]: requests,
+const toProductStockTransactItems = (
+  product: AvailableProduct
+): TransactWriteItem[] => {
+  return [
+    {
+      Put: {
+        TableName: productsTableName,
+        Item: {
+          id: { S: product.id },
+          title: { S: product.title },
+          description: { S: product.description },
+          price: { N: String(product.price) },
+          img: { S: product.img },
+        },
+        ConditionExpression: "attribute_not_exists(id)",
       },
+    },
+    {
+      Put: {
+        TableName: stockTableName,
+        Item: {
+          product_id: { S: product.id },
+          count: { N: String(product.count) },
+        },
+        ConditionExpression: "attribute_not_exists(product_id)",
+      },
+    },
+  ];
+};
+
+const writeTransactions = async (items: TransactWriteItem[]): Promise<void> => {
+  await dynamoDB.send(
+    new TransactWriteItemsCommand({
+      TransactItems: items,
     })
   );
-  const unprocessedCount = response.UnprocessedItems?.[tableName]?.length ?? 0;
-
-  if (unprocessedCount > 0) {
-    console.warn(
-      `Inserted into ${tableName} with ${unprocessedCount} unprocessed items`
-    );
-  } else {
-    console.log(`Inserted ${requests.length} items into ${tableName}`);
-  }
-};
-
-const toProductWriteRequests = (): WriteRequest[] => {
-  return mockProducts.map((product) => ({
-    PutRequest: {
-      Item: {
-        id: { S: product.id },
-        title: { S: product.title },
-        description: { S: product.description },
-        price: { N: String(product.price) },
-        img: { S: product.img },
-      },
-    },
-  }));
-};
-
-const toStockWriteRequests = (): WriteRequest[] => {
-  return mockProducts.map((product) => ({
-    PutRequest: {
-      Item: {
-        product_id: { S: product.id },
-        count: { N: String(product.count) },
-      },
-    },
-  }));
 };
 
 const run = async (): Promise<void> => {
@@ -64,8 +56,9 @@ const run = async (): Promise<void> => {
     `Seeding DynamoDB tables: ${productsTableName}, ${stockTableName}`
   );
 
-  await writeBatch(productsTableName, toProductWriteRequests());
-  await writeBatch(stockTableName, toStockWriteRequests());
+  for (const product of mockProducts) {
+    await writeTransactions(toProductStockTransactItems(product));
+  }
 
   console.log("Seeding completed successfully");
 };

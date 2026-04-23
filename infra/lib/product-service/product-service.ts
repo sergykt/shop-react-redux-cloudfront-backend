@@ -15,13 +15,16 @@ export interface ProductServiceProps {
 }
 
 export class ProductService extends Construct {
+  public readonly productsTable: dynamodb.Table;
+  public readonly stockTable: dynamodb.Table;
+
   constructor(scope: Construct, id: string, props: ProductServiceProps) {
     super(scope, id);
 
     const { apiGateway } = props;
 
     // Create DynamoDB Tables
-    const productsTable = new dynamodb.Table(this, "ProductsTable", {
+    this.productsTable = new dynamodb.Table(this, "ProductsTable", {
       tableName: "products",
       partitionKey: {
         name: "id",
@@ -31,7 +34,7 @@ export class ProductService extends Construct {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const stockTable = new dynamodb.Table(this, "StockTable", {
+    this.stockTable = new dynamodb.Table(this, "StockTable", {
       tableName: "stock",
       partitionKey: {
         name: "product_id",
@@ -54,13 +57,30 @@ export class ProductService extends Construct {
         path.join(__dirname, "../../resources/build/handlers/getProductsList")
       ),
       environment: {
-        PRODUCTS_TABLE_NAME: productsTable.tableName,
-        STOCK_TABLE_NAME: stockTable.tableName,
+        PRODUCTS_TABLE_NAME: this.productsTable.tableName,
+        STOCK_TABLE_NAME: this.stockTable.tableName,
       },
     });
 
-    productsTable.grantReadData(getProductsListLambda);
-    stockTable.grantReadData(getProductsListLambda);
+    this.productsTable.grantReadData(getProductsListLambda);
+    this.stockTable.grantReadData(getProductsListLambda);
+
+    const createProductLambda = new lambda.Function(this, "createProduct", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(5),
+      handler: "index.createProduct",
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, "../../resources/build/handlers/createProduct")
+      ),
+      environment: {
+        PRODUCTS_TABLE_NAME: this.productsTable.tableName,
+        STOCK_TABLE_NAME: this.stockTable.tableName,
+      },
+    });
+
+    this.productsTable.grantWriteData(createProductLambda);
+    this.stockTable.grantWriteData(createProductLambda);
 
     // Create a Lambda integration for the GET method on /products
     const getProductsListIntegration = new apigateway.LambdaIntegration(
@@ -96,6 +116,53 @@ export class ProductService extends Construct {
       ],
     });
 
+    // Create a Lambda integration for the POST method on /products
+    const createProductIntegration = new apigateway.LambdaIntegration(
+      createProductLambda,
+      {
+        requestTemplates: {
+          "application/json": "$input.json('$')",
+        },
+        integrationResponses: [
+          {
+            statusCode: "201",
+            responseParameters: INTEGRATION_DEFAULT_CORS_HEADERS,
+          },
+          {
+            statusCode: "400",
+            selectionPattern: ".*Invalid product payload.*",
+            responseParameters: INTEGRATION_DEFAULT_CORS_HEADERS,
+            responseTemplates: DEFAULT_ERROR_RESPONSE_TEMPLATE,
+          },
+          {
+            statusCode: "500",
+            selectionPattern: ".*Failed to create product.*",
+            responseParameters: INTEGRATION_DEFAULT_CORS_HEADERS,
+            responseTemplates: DEFAULT_ERROR_RESPONSE_TEMPLATE,
+          },
+        ],
+        proxy: false,
+      }
+    );
+
+    // Add POST method to /products resource
+    productsResource.addMethod("POST", createProductIntegration, {
+      methodResponses: [
+        {
+          statusCode: "201",
+          responseParameters: METHOD_DEFAULT_CORS_HEADERS,
+        },
+        {
+          statusCode: "400",
+          responseParameters: METHOD_DEFAULT_CORS_HEADERS,
+        },
+        {
+          statusCode: "500",
+          responseParameters: METHOD_DEFAULT_CORS_HEADERS,
+        },
+      ],
+    });
+
     // Create /products/{productId} resource
     const productByIdResource = productsResource.addResource("{productId}");
 
@@ -109,14 +176,14 @@ export class ProductService extends Construct {
         path.join(__dirname, "../../resources/build/handlers/getProductsById")
       ),
       environment: {
-        PRODUCTS_TABLE_NAME: productsTable.tableName,
-        STOCK_TABLE_NAME: stockTable.tableName,
+        PRODUCTS_TABLE_NAME: this.productsTable.tableName,
+        STOCK_TABLE_NAME: this.stockTable.tableName,
       },
     });
 
     // Grant Lambda read access to DynamoDB tables
-    productsTable.grantReadData(getProductsByIdLambda);
-    stockTable.grantReadData(getProductsByIdLambda);
+    this.productsTable.grantReadData(getProductsByIdLambda);
+    this.stockTable.grantReadData(getProductsByIdLambda);
 
     // Create a Lambda integration for the GET method on /products/{id}
     const getProductsByIdIntegration = new apigateway.LambdaIntegration(

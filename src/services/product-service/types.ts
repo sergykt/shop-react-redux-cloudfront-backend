@@ -9,3 +9,11 @@ export type Product = {
 export type AvailableProduct = Product & {
   count: number;
 };
+
+export type CreateProductPayload = {
+  title: string;
+  description: string;
+  price: number;
+  count: number;
+  img?: string;
+};
