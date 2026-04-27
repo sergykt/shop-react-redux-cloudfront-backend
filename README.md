@@ -107,3 +107,11 @@ Destroys all AWS resources created by the CDK stack.
 ```bash
 npm run cdk:destroy
 ```
+
+### `dynamo:fill`
+
+Populates the DynamoDB `ProductsTable` and `StockTable` with sample data.
+
+```bash
+npm run dynamo:fill
+```

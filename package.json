@@ -14,10 +14,13 @@
     "cdk:build:deploy": "npm run cdk:build && npm run cdk:deploy",
     "cdk:deploy": "cd infra && npx cdk deploy --outputs-file outputs.json --require-approval never --all",
     "cdk:destroy": "cd infra && npx cdk destroy --force",
-    "cdk:synth": "cd infra && npx cdk synth > MyStack.template.yml"
+    "cdk:synth": "cd infra && npx cdk synth > MyStack.template.yml",
+    "dynamo:fill": "npx ts-node ./scripts/fill-tables.ts"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1035.0",
     "@eslint/js": "^10.0.1",
+    "@types/aws-lambda": "^8.10.161",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
     "esbuild": "^0.28.0",
