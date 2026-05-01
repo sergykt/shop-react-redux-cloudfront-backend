@@ -5,7 +5,10 @@ This is backend service for frontend starter project for nodejs-aws mentoring pr
 ## Deployment
 
 **Api Gateway:**
-[https://4xxckkyhoj.execute-api.us-east-1.amazonaws.com/prod/](https://4xxckkyhoj.execute-api.us-east-1.amazonaws.com/prod/)
+
+Product Service - [https://4xxckkyhoj.execute-api.us-east-1.amazonaws.com/prod/](https://4xxckkyhoj.execute-api.us-east-1.amazonaws.com/prod/)
+
+Import Service - [https://vd7z1vg9zc.execute-api.us-east-1.amazonaws.com/prod/](https://vd7z1vg9zc.execute-api.us-east-1.amazonaws.com/prod)
 
 ## Tech stack
 
