@@ -52,5 +52,11 @@ export class DeployBackendStack extends cdk.Stack {
       description: "ARN of the SQS queue for catalog items",
       exportName: "CatalogItemsQueueArn",
     });
+
+    new cdk.CfnOutput(this, "CreateProductTopicArn", {
+      value: productService.createProductTopic.topicArn,
+      description: "ARN of the SNS topic for product creation events",
+      exportName: "CreateProductTopicArn",
+    });
   }
 }

@@ -1,7 +1,11 @@
 import { SQSBatchItemFailure, SQSBatchResponse, SQSEvent } from "aws-lambda";
+import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 import { createProduct } from "../createProduct";
 import { CreateProductPayload } from "../../types";
 import { ValidationError } from "../../errors";
+
+const snsClient = new SNSClient({ region: process.env.AWS_REGION });
+const createProductTopicArn = process.env.CREATE_PRODUCT_TOPIC_ARN as string;
 
 export const catalogBatchProcess = async (
   event: SQSEvent
@@ -13,6 +17,15 @@ export const catalogBatchProcess = async (
     try {
       const payload = JSON.parse(record.body) as CreateProductPayload;
       await createProduct(payload);
+
+      // Publish a message to the SNS topic for product creation events
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: createProductTopicArn,
+          Subject: "New Product(s) Created",
+          Message: JSON.stringify(payload, null, 2),
+        })
+      );
     } catch (error) {
       console.error("Error processing record:", record, "Error:", error);
 
