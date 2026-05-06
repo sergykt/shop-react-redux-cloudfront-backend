@@ -4,6 +4,7 @@ import {
   TransactWriteItemsCommand,
 } from "@aws-sdk/client-dynamodb";
 import { AvailableProduct, CreateProductPayload } from "../../types";
+import { ValidationError } from "../../errors";
 
 type ValidatedCreateProductPayload = Required<CreateProductPayload>;
 
@@ -36,7 +37,9 @@ const validatePayload = (
   }
 
   if (validationErrors.length > 0) {
-    throw new Error(`Invalid product payload: ${validationErrors.join("; ")}.`);
+    throw new ValidationError(
+      `Invalid product payload: ${validationErrors.join("; ")}.`
+    );
   }
 
   return {
@@ -98,6 +101,8 @@ export const createProduct = async (
       })
     );
 
+    console.log("Product created successfully with ID:", productId);
+
     return {
       id: productId,
       title,
@@ -111,6 +116,11 @@ export const createProduct = async (
       error instanceof Error ? error.message : "Unknown error";
 
     console.error("Error creating product:", errorMessage);
+
+    // Re-throw validation errors as-is
+    if (error instanceof ValidationError) {
+      throw error;
+    }
 
     throw new Error(`Failed to create product: ${errorMessage}`, {
       cause: error,
