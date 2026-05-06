@@ -3,6 +3,7 @@ import * as s3n from "aws-cdk-lib/aws-s3-notifications";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as s3deployment from "aws-cdk-lib/aws-s3-deployment";
+import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as cdk from "aws-cdk-lib";
 import * as path from "path";
 import { Construct } from "constructs";
@@ -135,6 +136,15 @@ export class ImportServiceStack extends cdk.Stack {
       ],
     });
 
+    const catalogItemsQueueUrl = cdk.Fn.importValue("CatalogItemsQueueUrl");
+    const catalogItemsQueueArn = cdk.Fn.importValue("CatalogItemsQueueArn");
+
+    const catalogQueue = sqs.Queue.fromQueueArn(
+      this,
+      "catalog-items-queue",
+      catalogItemsQueueArn
+    );
+
     // Create a Lambda function to handle S3 events for the import bucket
     const importFileParserLambda = new lambda.Function(
       this,
@@ -150,8 +160,14 @@ export class ImportServiceStack extends cdk.Stack {
             "../../resources/build/handlers/importFileParser"
           )
         ),
+        environment: {
+          CATALOG_ITEMS_QUEUE_URL: catalogItemsQueueUrl,
+        },
       }
     );
+
+    // Grant the Lambda permission to send messages to the SQS queue
+    catalogQueue.grantSendMessages(importFileParserLambda);
 
     // Grant the Lambda permission to read, copy and delete objects (needed for move: uploaded/ → parsed/)
     this.bucket.grantReadWrite(importFileParserLambda);

@@ -46,5 +46,11 @@ export class DeployBackendStack extends cdk.Stack {
       description: "URL of the SQS queue for catalog items",
       exportName: "CatalogItemsQueueUrl",
     });
+
+    new cdk.CfnOutput(this, "CatalogItemsQueueArn", {
+      value: productService.catalogItemsQueue.queueArn,
+      description: "ARN of the SQS queue for catalog items",
+      exportName: "CatalogItemsQueueArn",
+    });
   }
 }
