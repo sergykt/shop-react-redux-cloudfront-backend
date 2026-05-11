@@ -2,6 +2,10 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as cdk from "aws-cdk-lib";
+import * as sqs from "aws-cdk-lib/aws-sqs";
+import * as sns from "aws-cdk-lib/aws-sns";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
+import { EmailSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
 import * as path from "path";
 import { Construct } from "constructs";
 import {
@@ -17,6 +21,8 @@ export interface ProductServiceProps {
 export class ProductService extends Construct {
   public readonly productsTable: dynamodb.Table;
   public readonly stockTable: dynamodb.Table;
+  public readonly catalogItemsQueue: sqs.Queue;
+  public readonly createProductTopic: sns.Topic;
 
   constructor(scope: Construct, id: string, props: ProductServiceProps) {
     super(scope, id);
@@ -43,6 +49,61 @@ export class ProductService extends Construct {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY, // For development; change for production
     });
+
+    // Create SQS Queue for batch processing of catalog items
+    this.catalogItemsQueue = new sqs.Queue(this, "catalog-items-queue", {
+      queueName: "catalog-items-queue",
+      visibilityTimeout: cdk.Duration.seconds(30),
+      retentionPeriod: cdk.Duration.days(4),
+    });
+
+    // Create SNS Topic for product creation events
+    this.createProductTopic = new sns.Topic(this, "create-product-topic", {
+      topicName: "create-product-topic",
+      displayName: "Topic for product creation notifications",
+    });
+
+    this.createProductTopic.addSubscription(
+      new EmailSubscription(this.node.tryGetContext("defaultEmail") as string)
+    );
+
+    // Create Lambda function for batch processing of catalog items
+    const catalogBatchProcessLambda = new lambda.Function(
+      this,
+      "catalogBatchProcess",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        memorySize: 1024,
+        timeout: cdk.Duration.seconds(30),
+        handler: "index.catalogBatchProcess",
+        code: lambda.Code.fromAsset(
+          path.join(
+            __dirname,
+            "../../resources/build/handlers/catalogBatchProcess"
+          )
+        ),
+        environment: {
+          PRODUCTS_TABLE_NAME: this.productsTable.tableName,
+          STOCK_TABLE_NAME: this.stockTable.tableName,
+          CREATE_PRODUCT_TOPIC_ARN: this.createProductTopic.topicArn,
+        },
+      }
+    );
+
+    // Grant CatalogBatchProcess Lambda function permissions to write to DynamoDB tables
+    this.productsTable.grantWriteData(catalogBatchProcessLambda);
+    this.stockTable.grantWriteData(catalogBatchProcessLambda);
+
+    // Add SQS event source to the Lambda function
+    catalogBatchProcessLambda.addEventSource(
+      new SqsEventSource(this.catalogItemsQueue, {
+        batchSize: 5,
+        reportBatchItemFailures: true,
+      })
+    );
+
+    // Grant the Lambda permission to publish to the SNS topic
+    this.createProductTopic.grantPublish(catalogBatchProcessLambda);
 
     // Create /products resource
     const productsResource = apiGateway.root.addResource("products");

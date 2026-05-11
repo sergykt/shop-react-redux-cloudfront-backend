@@ -1,4 +1,4 @@
-export const FRONTEND_URL = "https://d67pyit89tiwq.cloudfront.net";
+export const FRONTEND_URL = "https://d30f3xji9dtliy.cloudfront.net";
 export const FRONTEND_URL_LITERAL = `'${FRONTEND_URL}'`;
 
 export const INTEGRATION_DEFAULT_CORS_HEADERS = {

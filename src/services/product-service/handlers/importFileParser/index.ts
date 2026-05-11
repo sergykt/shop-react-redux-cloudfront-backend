@@ -4,11 +4,23 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { S3Event } from "aws-lambda";
 import { Readable } from "stream";
 import csv from "csv-parser";
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const sqsClient = new SQSClient({ region: process.env.AWS_REGION });
+
+const queueUrl = process.env.CATALOG_ITEMS_QUEUE_URL as string;
+
+const normalizeRow = (row: Record<string, string>): Record<string, unknown> => {
+  return {
+    ...row,
+    price: Number(row.price),
+    count: Number(row.count),
+  };
+};
 
 export const importFileParser = async (event: S3Event): Promise<void> => {
   for (const record of event.Records) {
@@ -24,8 +36,13 @@ export const importFileParser = async (event: S3Event): Promise<void> => {
     await new Promise<void>((resolve, reject) => {
       (Body as Readable)
         .pipe(csv())
-        .on("data", (row) => {
-          console.log("Parsed row:", JSON.stringify(row));
+        .on("data", async (row) => {
+          await sqsClient.send(
+            new SendMessageCommand({
+              QueueUrl: queueUrl,
+              MessageBody: JSON.stringify(normalizeRow(row)),
+            })
+          );
         })
         .on("end", () => {
           console.log(`Finished parsing: ${key}`);

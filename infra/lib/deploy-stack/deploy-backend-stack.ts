@@ -40,5 +40,23 @@ export class DeployBackendStack extends cdk.Stack {
       description: "Name of the DynamoDB stock table",
       exportName: "StockTableName",
     });
+
+    new cdk.CfnOutput(this, "CatalogItemsQueueUrl", {
+      value: productService.catalogItemsQueue.queueUrl,
+      description: "URL of the SQS queue for catalog items",
+      exportName: "CatalogItemsQueueUrl",
+    });
+
+    new cdk.CfnOutput(this, "CatalogItemsQueueArn", {
+      value: productService.catalogItemsQueue.queueArn,
+      description: "ARN of the SQS queue for catalog items",
+      exportName: "CatalogItemsQueueArn",
+    });
+
+    new cdk.CfnOutput(this, "CreateProductTopicArn", {
+      value: productService.createProductTopic.topicArn,
+      description: "ARN of the SNS topic for product creation events",
+      exportName: "CreateProductTopicArn",
+    });
   }
 }

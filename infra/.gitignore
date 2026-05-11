@@ -8,3 +8,6 @@ node_modules
 cdk.out
 resources
 outputs.json
+
+# CDK context file (contains environment-specific information, should not be committed)
+cdk.context.json
