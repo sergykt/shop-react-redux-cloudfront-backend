@@ -82,6 +82,24 @@ export class ImportServiceStack extends cdk.Stack {
     // Grant the Lambda permission to put objects into the import bucket
     this.bucket.grantPut(importProductsFileLambda);
 
+    // Import the authorizer Lambda and create a TokenAuthorizer for this API
+    const authorizerLambdaArn = cdk.Fn.importValue("BasicAuthorizerLambdaArn");
+    const importedAuthorizerLambda = lambda.Function.fromFunctionArn(
+      this,
+      "ImportedBasicAuthorizerLambda",
+      authorizerLambdaArn
+    );
+
+    const basicAuthorizer = new apigateway.TokenAuthorizer(
+      this,
+      "ImportApiBasicAuthorizer",
+      {
+        handler: importedAuthorizerLambda,
+        identitySource: "method.request.header.Authorization",
+        resultsCacheTtl: cdk.Duration.seconds(0),
+      }
+    );
+
     // Create a Lambda integration for the GET method on /import
     const importProductsFileIntegration = new apigateway.LambdaIntegration(
       importProductsFileLambda,
@@ -134,6 +152,8 @@ export class ImportServiceStack extends cdk.Stack {
           responseParameters: METHOD_DEFAULT_CORS_HEADERS,
         },
       ],
+      authorizer: basicAuthorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
     });
 
     const catalogItemsQueueUrl = cdk.Fn.importValue("CatalogItemsQueueUrl");
